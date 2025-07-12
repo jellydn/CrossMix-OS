@@ -48,28 +48,64 @@ jobs:
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           
-          # Save both image directories first
-          echo "Backing up boot logo images..."
-          cp -r Apps/BootLogo/Images_1024x768 /tmp/Images_1024x768_backup
-          cp -r Apps/BootLogo/Images_1280x720 /tmp/Images_1280x720_backup
+          # Backup directories for device-specific builds
+          echo "Backing up device-specific files..."
+          mkdir -p /tmp/backup
+          cp -r Apps/BootLogo/Images_1024x768 /tmp/backup/
+          cp -r Apps/BootLogo/Images_1280x720 /tmp/backup/
+          
+          # Save heavy components for selective inclusion
+          mkdir -p /tmp/heavy_components
+          # Move heavy emulators temporarily
+          [ -d "Emus/SCUMMVM" ] && mv Emus/SCUMMVM /tmp/heavy_components/
+          [ -d "Emus/PSP" ] && mv Emus/PSP /tmp/heavy_components/
+          [ -d "Emus/DC" ] && mv Emus/DC /tmp/heavy_components/
+          [ -d "Emus/SATURN" ] && mv Emus/SATURN /tmp/heavy_components/
+          [ -d "Emus/NDS" ] && mv Emus/NDS /tmp/heavy_components/
+          
+          # Move PortMaster temporarily (TSP only)
+          [ -d "Apps/PortMaster" ] && mv Apps/PortMaster /tmp/heavy_components/
+          
+          # Move heavy RetroArch cores temporarily
+          mkdir -p /tmp/heavy_components/cores
+          for core in mame2015_libretro.so scummvm_libretro-2.9.so mame2010_libretro.so fbneo_libretro.so flycast_libretro.so ppsspp_libretro.so; do
+            [ -f "RetroArch/.retroarch/cores/$core" ] && mv "RetroArch/.retroarch/cores/$core" /tmp/heavy_components/cores/
+          done
+          
+          # Move SCUMMVM BIOS files
+          [ -d "BIOS/ScummVM" ] && mv BIOS/ScummVM /tmp/heavy_components/
           
           # Create TSP (TrimUI Smart Pro) build - 1280x720
-          echo "Creating TSP (1280x720) build..."
+          echo "Creating TSP (1280x720) build with full features..."
           # Remove legacy boot logo images to save space
           rm -rf Apps/BootLogo/Images_1024x768
+          # Restore TSP-specific components
+          cp -r /tmp/heavy_components/* . 2>/dev/null || true
+          [ -d "/tmp/heavy_components/cores" ] && cp /tmp/heavy_components/cores/* RetroArch/.retroarch/cores/ 2>/dev/null || true
+          [ -d "/tmp/heavy_components/ScummVM" ] && cp -r /tmp/heavy_components/ScummVM BIOS/ 2>/dev/null || true
           # Create device identifier file for TSP
           mkdir -p etc
           echo "tsp" > etc/trimui_device.txt
           zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip" ./*
           
-          # Create Legacy build - 1024x768  
-          echo "Creating Legacy (1024x768) build..."
+          # Create Legacy/Brick build - 1024x768  
+          echo "Creating Legacy/Brick (1024x768) build with optimized components..."
+          # Remove TSP-specific heavy components
+          rm -rf Emus/SCUMMVM Emus/PSP Emus/DC Emus/SATURN Emus/NDS
+          rm -rf Apps/PortMaster
+          rm -f RetroArch/.retroarch/cores/mame2015_libretro.so
+          rm -f RetroArch/.retroarch/cores/scummvm_libretro-2.9.so
+          rm -f RetroArch/.retroarch/cores/mame2010_libretro.so
+          rm -f RetroArch/.retroarch/cores/fbneo_libretro.so
+          rm -f RetroArch/.retroarch/cores/flycast_libretro.so
+          rm -f RetroArch/.retroarch/cores/ppsspp_libretro.so
+          rm -rf BIOS/ScummVM
           # Restore legacy images from backup
-          cp -r /tmp/Images_1024x768_backup Apps/BootLogo/Images_1024x768
+          cp -r /tmp/backup/Images_1024x768 Apps/BootLogo/
           # Remove TSP boot logo images to save space
           rm -rf Apps/BootLogo/Images_1280x720
           # Create device identifier file for legacy devices
-          echo "legacy" > etc/trimui_device.txt  
+          echo "brick" > etc/trimui_device.txt  
           zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip" ./*
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest

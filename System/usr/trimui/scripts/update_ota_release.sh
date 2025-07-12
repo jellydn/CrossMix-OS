@@ -98,7 +98,7 @@ get_release_info() {
         device_name="TrimUI Smart Pro"
     else
         device_suffix="_Legacy"  
-        device_name="Legacy device"
+        device_name="TrimUI Brick"
     fi
     
     # Try to find device-specific asset first, fallback to generic
