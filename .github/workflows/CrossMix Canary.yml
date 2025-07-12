@@ -72,6 +72,11 @@ jobs:
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           
+          # Save both image directories first
+          echo "Backing up boot logo images..."
+          cp -r Apps/BootLogo/Images_1024x768 /tmp/Images_1024x768_backup
+          cp -r Apps/BootLogo/Images_1280x720 /tmp/Images_1280x720_backup
+          
           # Create TSP (TrimUI Smart Pro) build - 1280x720
           echo "Creating TSP (1280x720) build..."
           # Remove legacy boot logo images to save space
@@ -81,9 +86,10 @@ jobs:
           echo "tsp" > etc/trimui_device.txt
           zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip" ./*
           
-          # Restore legacy images and create Legacy build - 1024x768  
+          # Create Legacy build - 1024x768  
           echo "Creating Legacy (1024x768) build..."
-          git checkout HEAD -- Apps/BootLogo/Images_1024x768
+          # Restore legacy images from backup
+          cp -r /tmp/Images_1024x768_backup Apps/BootLogo/Images_1024x768
           # Remove TSP boot logo images to save space
           rm -rf Apps/BootLogo/Images_1280x720
           # Create device identifier file for legacy devices
