@@ -1,0 +1,130 @@
+name: CrossMix-OS Canary TSP Release
+
+permissions:
+  id-token: "write"
+  contents: "write"
+  packages: "write"
+  pull-requests: "read"
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  canary-tsp-release:
+    name: Canary TSP release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip canary]')"
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get version and build info
+        run: |
+          # Get the latest stable version tag (excluding canary versions)
+          LATEST_TAG=$(git tag -l "v*" | grep -v "canary" | sort -V | tail -1 || echo "v1.0.0")
+          BASE_VERSION=${LATEST_TAG#v}
+          
+          # Create canary version with short commit hash and timestamp
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M)
+          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
+          
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+          echo "CANARY_VERSION=${CANARY_VERSION}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
+          
+          echo "Building TSP canary version: ${CANARY_VERSION}"
+      
+      - name: Install 7-Zip
+        run: |
+          mkdir -p /home/runner/work/CrossMix-OS/tools
+          wget https://www.7-zip.org/a/7z2406-linux-x64.tar.xz -P /home/runner/work/CrossMix-OS/tools
+          tar xvf /home/runner/work/CrossMix-OS/tools/7z2406-linux-x64.tar.xz -C /home/runner/work/CrossMix-OS/tools
+          sudo cp /home/runner/work/CrossMix-OS/tools/7zz /usr/local/bin/
+      
+      - name: Update version file for canary
+        run: |
+          echo "${CANARY_VERSION}" > /home/runner/work/CrossMix-OS/CrossMix-OS/System/usr/trimui/crossmix-version.txt
+          
+      - name: Extract RetroArch cores
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS/RetroArch/.retroarch/cores -name "*.7z" -execdir 7zz x {} \; -execdir rm {} \;
+      
+      - name: Cleaning image and prepare TSP build
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS -type f -name ".gitkeep" -delete
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/_assets
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/LICENSE
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/README.md
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.git
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.github
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
+          
+          # TSP-specific preparation: Remove legacy boot logo images
+          rm -rf Apps/BootLogo/Images_1024x768
+          # Create device identifier file for TSP
+          mkdir -p etc
+          echo "tsp" > etc/trimui_device.txt
+      
+      - name: Create TSP build
+        run: |
+          shopt -s dotglob
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          echo "Creating TSP (1280x720) build with full features..."
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip" ./*
+      
+      - name: Delete previous TSP canary releases
+        run: |
+          # Delete previous TSP canary releases to avoid cluttering (keep latest 5)
+          gh release list --limit 50 --repo ${{ github.repository }} | grep -E "v.*-canary\.*TSP" | tail -n +6 | while read -r line; do
+            tag=$(echo "$line" | awk '{print $1}')
+            echo "Deleting old TSP canary release: $tag"
+            gh release delete "$tag" --yes --repo ${{ github.repository }} || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create TSP Canary Release
+        run: |
+          # Create release using GitHub CLI to handle large files
+          gh release create "v${{ env.CANARY_VERSION }}-TSP" \
+            --repo ${{ github.repository }} \
+            --title "CrossMix-OS v${{ env.CANARY_VERSION }} TSP (Canary)" \
+            --notes "## 🚧 TSP Canary Release - v${{ env.CANARY_VERSION }}
+
+          **⚠️ This is an automated pre-release build for TSP devices only.**
+
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Build Date:** ${{ env.TIMESTAMP }}
+          - **Base Version:** ${{ env.BASE_VERSION }}
+          - **Device:** TrimUI Smart Pro (1280x720)
+
+          ### 📦 TSP Build Features
+          - Full-featured build with all emulators (SCUMMVM, PSP, DC, Saturn, NDS)
+          - PortMaster for ports and games
+          - Heavy RetroArch cores (MAME2015, ScummVM, etc.)
+          - High-resolution assets
+
+          ### 📋 Recent Changes
+          ${{ github.event.head_commit.message }}
+
+          ### ⚠️ Important Notes
+          - This build is **only for TrimUI Smart Pro devices**
+          - This is a **development build** and may contain bugs
+          - Use at your own risk - always backup your device first
+          - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
+
+          ### 🔄 OTA Update Support
+          This canary release is compatible with the OTA update system for TSP devices." \
+            --prerelease \
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

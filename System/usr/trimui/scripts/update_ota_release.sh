@@ -69,10 +69,28 @@ main() {
 get_release_info() {
     echo -ne "${PURPLE}Retrieving release information.. ${NC}"
 
+    # Detect device type for device-specific releases
+    if [ -f /etc/trimui_device.txt ]; then
+        Current_device=$(cat /etc/trimui_device.txt)
+    else
+        Current_device="unknown"
+    fi
+    
     # Github source api url - check for canary releases if channel is canary
     if [ "$channel" = "canary" ]; then
-        # Get latest pre-release (canary)
-        Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[0]')
+        # Get device-specific canary release
+        if [ "$Current_device" = "tsp" ]; then
+            # Get latest TSP canary release
+            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-TSP")) | select(.prerelease == true)' | jq -s '.[0]')
+        else
+            # Get latest Legacy canary release  
+            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-Legacy")) | select(.prerelease == true)' | jq -s '.[0]')
+        fi
+        
+        # Fallback to any canary release if device-specific not found
+        if [ -z "$Release_assets_info" ] || [ "$Release_assets_info" = "null" ]; then
+            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.prerelease == true)' | jq -s '.[0]')
+        fi
     else
         # Get latest stable release
         Release_assets_info=$(curl -k -s https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest)
@@ -85,34 +103,15 @@ get_release_info() {
         return 1
     fi
 
-    # Detect device type for device-specific packages
-    if [ -f /etc/trimui_device.txt ]; then
-        Current_device=$(cat /etc/trimui_device.txt)
-    else
-        Current_device="unknown"
-    fi
-    
-    # Determine device suffix for package selection
+    # Determine device name for display
     if [ "$Current_device" = "tsp" ]; then
-        device_suffix="_TSP"
         device_name="TrimUI Smart Pro"
     else
-        device_suffix="_Legacy"  
         device_name="TrimUI Brick"
     fi
     
-    # Try to find device-specific asset first, fallback to generic
-    Release_asset=$(echo "$Release_assets_info" | jq ".assets[]? | select(.name | contains(\"CrossMix-OS_v\") and contains(\"$device_suffix\"))")
-    
-    # Fallback to generic package if device-specific not found
-    if [ -z "$Release_asset" ] || [ "$Release_asset" = "null" ]; then
-        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v") and (contains("_TSP") or contains("_Legacy")) | not)')
-    fi
-    
-    # Final fallback to any CrossMix-OS package
-    if [ -z "$Release_asset" ] || [ "$Release_asset" = "null" ]; then
-        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
-    fi
+    # Get the release asset (should be the only one in device-specific releases)
+    Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
     
     Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
     Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_TSP\.zip$//g' | sed 's/_Legacy\.zip$//g' | sed 's/\.zip$//g')

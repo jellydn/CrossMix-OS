@@ -1,0 +1,148 @@
+name: CrossMix-OS Canary Legacy Release
+
+permissions:
+  id-token: "write"
+  contents: "write"
+  packages: "write"
+  pull-requests: "read"
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  canary-legacy-release:
+    name: Canary Legacy release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip canary]')"
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get version and build info
+        run: |
+          # Get the latest stable version tag (excluding canary versions)
+          LATEST_TAG=$(git tag -l "v*" | grep -v "canary" | sort -V | tail -1 || echo "v1.0.0")
+          BASE_VERSION=${LATEST_TAG#v}
+          
+          # Create canary version with short commit hash and timestamp
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M)
+          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
+          
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+          echo "CANARY_VERSION=${CANARY_VERSION}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
+          
+          echo "Building Legacy canary version: ${CANARY_VERSION}"
+      
+      - name: Install 7-Zip
+        run: |
+          mkdir -p /home/runner/work/CrossMix-OS/tools
+          wget https://www.7-zip.org/a/7z2406-linux-x64.tar.xz -P /home/runner/work/CrossMix-OS/tools
+          tar xvf /home/runner/work/CrossMix-OS/tools/7z2406-linux-x64.tar.xz -C /home/runner/work/CrossMix-OS/tools
+          sudo cp /home/runner/work/CrossMix-OS/tools/7zz /usr/local/bin/
+      
+      - name: Update version file for canary
+        run: |
+          echo "${CANARY_VERSION}" > /home/runner/work/CrossMix-OS/CrossMix-OS/System/usr/trimui/crossmix-version.txt
+          
+      - name: Extract RetroArch cores
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS/RetroArch/.retroarch/cores -name "*.7z" -execdir 7zz x {} \; -execdir rm {} \;
+      
+      - name: Cleaning image and prepare Legacy build
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS -type f -name ".gitkeep" -delete
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/_assets
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/LICENSE
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/README.md
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.git
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.github
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
+          
+          # Legacy-specific preparation: Remove heavy components
+          echo "Removing heavy emulators for Legacy build..."
+          rm -rf Emus/SCUMMVM Emus/PSP Emus/DC Emus/SATURN Emus/NDS
+          rm -rf Apps/PortMaster
+          
+          echo "Removing heavy RetroArch cores..."
+          rm -f RetroArch/.retroarch/cores/mame2015_libretro.so
+          rm -f RetroArch/.retroarch/cores/scummvm_libretro-2.9.so
+          rm -f RetroArch/.retroarch/cores/mame2010_libretro.so
+          rm -f RetroArch/.retroarch/cores/fbneo_libretro.so
+          rm -f RetroArch/.retroarch/cores/flycast_libretro.so
+          rm -f RetroArch/.retroarch/cores/ppsspp_libretro.so
+          
+          echo "Removing heavy BIOS files..."
+          rm -rf BIOS/ScummVM
+          
+          # Remove TSP boot logo images and keep legacy ones
+          rm -rf Apps/BootLogo/Images_1280x720
+          
+          # Create device identifier file for legacy devices
+          mkdir -p etc
+          echo "brick" > etc/trimui_device.txt
+      
+      - name: Create Legacy build
+        run: |
+          shopt -s dotglob
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          echo "Creating Legacy/Brick (1024x768) build with optimized components..."
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Legacy.zip" ./*
+      
+      - name: Delete previous Legacy canary releases
+        run: |
+          # Delete previous Legacy canary releases to avoid cluttering (keep latest 5)
+          gh release list --limit 50 --repo ${{ github.repository }} | grep -E "v.*-canary\.*Legacy" | tail -n +6 | while read -r line; do
+            tag=$(echo "$line" | awk '{print $1}')
+            echo "Deleting old Legacy canary release: $tag"
+            gh release delete "$tag" --yes --repo ${{ github.repository }} || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create Legacy Canary Release
+        run: |
+          # Create release using GitHub CLI to handle large files
+          gh release create "v${{ env.CANARY_VERSION }}-Legacy" \
+            --repo ${{ github.repository }} \
+            --title "CrossMix-OS v${{ env.CANARY_VERSION }} Legacy (Canary)" \
+            --notes "## 🚧 Legacy Canary Release - v${{ env.CANARY_VERSION }}
+
+          **⚠️ This is an automated pre-release build for Legacy/Brick devices only.**
+
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Build Date:** ${{ env.TIMESTAMP }}
+          - **Base Version:** ${{ env.BASE_VERSION }}
+          - **Device:** TrimUI Brick (1024x768)
+
+          ### 📦 Legacy Build Features
+          - Optimized build for lower-spec device
+          - Essential emulators only (no PSP, DC, Saturn, NDS, SCUMMVM)
+          - Lightweight RetroArch cores
+          - Optimized assets for smaller screen
+          - No PortMaster (requires more processing power)
+
+          ### 📋 Recent Changes
+          ${{ github.event.head_commit.message }}
+
+          ### ⚠️ Important Notes
+          - This build is **only for TrimUI Brick devices (legacy)**
+          - This is a **development build** and may contain bugs
+          - Use at your own risk - always backup your device first
+          - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
+
+          ### 🔄 OTA Update Support
+          This canary release is compatible with the OTA update system for Legacy devices." \
+            --prerelease \
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Legacy.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
