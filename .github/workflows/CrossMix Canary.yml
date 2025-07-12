@@ -85,31 +85,31 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Create Canary Release
-        uses: marvinpinto/action-automatic-releases@latest
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: "v${{ env.CANARY_VERSION }}"
-          title: "CrossMix-OS v${{ env.CANARY_VERSION }} (Canary)"
-          prerelease: true
-          files: "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip"
-          body: |
-            ## 🚧 Canary Release - v${{ env.CANARY_VERSION }}
-            
-            **⚠️ This is an automated pre-release build for testing purposes.**
-            
-            - **Commit:** ${{ github.sha }}
-            - **Branch:** ${{ github.ref_name }}
-            - **Build Date:** ${{ env.TIMESTAMP }}
-            - **Base Version:** ${{ env.BASE_VERSION }}
-            
-            ### 📋 Recent Changes
-            ${{ github.event.head_commit.message }}
-            
-            ### ⚠️ Important Notes
-            - This is a **development build** and may contain bugs
-            - Use at your own risk - always backup your device first
-            - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
-            - Canary releases are automatically cleaned up (only latest 5 kept)
-            
-            ### 🔄 OTA Update Support
-            This canary release is compatible with the OTA update system. The device will detect this as a development version and offer it for update if you're on an older version.
+        run: |
+          # Create release using GitHub CLI to handle large files
+          gh release create "v${{ env.CANARY_VERSION }}" \
+            --title "CrossMix-OS v${{ env.CANARY_VERSION }} (Canary)" \
+            --notes "## 🚧 Canary Release - v${{ env.CANARY_VERSION }}
+
+          **⚠️ This is an automated pre-release build for testing purposes.**
+
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Build Date:** ${{ env.TIMESTAMP }}
+          - **Base Version:** ${{ env.BASE_VERSION }}
+
+          ### 📋 Recent Changes
+          ${{ github.event.head_commit.message }}
+
+          ### ⚠️ Important Notes
+          - This is a **development build** and may contain bugs
+          - Use at your own risk - always backup your device first
+          - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
+          - Canary releases are automatically cleaned up (only latest 5 kept)
+
+          ### 🔄 OTA Update Support
+          This canary release is compatible with the OTA update system. The device will detect this as a development version and offer it for update if you're on an older version." \
+            --prerelease \
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
