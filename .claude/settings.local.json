@@ -12,7 +12,14 @@
       "Bash(then cp \"/Users/huynhdung/Projects/research/CrossMix-OS/Apps/SystemTools/Menu/Imgs/ADVANCED SETTINGS##OTA CHANNEL (value).png\" \"/Users/huynhdung/Projects/research/CrossMix-OS/Apps/SystemTools/Menu/Imgs_CrossMix - Refreshed/ADVANCED SETTINGS##OTA CHANNEL (value).png\")",
       "Bash(fi)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh run view:*)",
+      "Bash(git commit:*)",
+      "Bash(./test_ota_canary.sh:*)",
+      "Bash(curl:*)",
+      "Bash(gh release view:*)"
     ],
     "deny": []
   }

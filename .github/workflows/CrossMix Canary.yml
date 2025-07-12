@@ -67,11 +67,28 @@ jobs:
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
       
-      - name: Zipping canary release
+      - name: Create device-specific builds
         run: |
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip" ./*
+          
+          # Create TSP (TrimUI Smart Pro) build - 1280x720
+          echo "Creating TSP (1280x720) build..."
+          # Remove legacy boot logo images to save space
+          rm -rf Apps/BootLogo/Images_1024x768
+          # Create device identifier file for TSP
+          mkdir -p etc
+          echo "tsp" > etc/trimui_device.txt
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip" ./*
+          
+          # Restore legacy images and create Legacy build - 1024x768  
+          echo "Creating Legacy (1024x768) build..."
+          git checkout HEAD -- Apps/BootLogo/Images_1024x768
+          # Remove TSP boot logo images to save space
+          rm -rf Apps/BootLogo/Images_1280x720
+          # Create device identifier file for legacy devices
+          echo "legacy" > etc/trimui_device.txt  
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Legacy.zip" ./*
       
       - name: Delete previous canary releases
         run: |
@@ -99,18 +116,24 @@ jobs:
           - **Build Date:** ${{ env.TIMESTAMP }}
           - **Base Version:** ${{ env.BASE_VERSION }}
 
+          ### 📦 Device-Specific Downloads
+          - **TSP Build** (TrimUI Smart Pro - 1280x720): \`CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip\`
+          - **Legacy Build** (Other devices - 1024x768): \`CrossMix-OS_v${{ env.CANARY_VERSION }}_Legacy.zip\`
+
           ### 📋 Recent Changes
           ${{ github.event.head_commit.message }}
 
           ### ⚠️ Important Notes
           - This is a **development build** and may contain bugs
           - Use at your own risk - always backup your device first
+          - Choose the correct build for your device
           - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
           - Canary releases are automatically cleaned up (only latest 5 kept)
 
           ### 🔄 OTA Update Support
-          This canary release is compatible with the OTA update system. The device will detect this as a development version and offer it for update if you're on an older version." \
+          This canary release is compatible with the OTA update system. The device will automatically detect and download the appropriate build for your device." \
             --prerelease \
-            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip"
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP.zip" \
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Legacy.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

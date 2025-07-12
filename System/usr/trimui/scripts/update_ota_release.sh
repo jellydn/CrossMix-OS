@@ -85,10 +85,38 @@ get_release_info() {
         return 1
     fi
 
-    Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
+    # Detect device type for device-specific packages
+    if [ -f /etc/trimui_device.txt ]; then
+        Current_device=$(cat /etc/trimui_device.txt)
+    else
+        Current_device="unknown"
+    fi
+    
+    # Determine device suffix for package selection
+    if [ "$Current_device" = "tsp" ]; then
+        device_suffix="_TSP"
+        device_name="TrimUI Smart Pro"
+    else
+        device_suffix="_Legacy"  
+        device_name="Legacy device"
+    fi
+    
+    # Try to find device-specific asset first, fallback to generic
+    Release_asset=$(echo "$Release_assets_info" | jq ".assets[]? | select(.name | contains(\"CrossMix-OS_v\") and contains(\"$device_suffix\"))")
+    
+    # Fallback to generic package if device-specific not found
+    if [ -z "$Release_asset" ] || [ "$Release_asset" = "null" ]; then
+        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v") and (contains("_TSP") or contains("_Legacy")) | not)')
+    fi
+    
+    # Final fallback to any CrossMix-OS package
+    if [ -z "$Release_asset" ] || [ "$Release_asset" = "null" ]; then
+        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
+    fi
+    
     Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
-    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/\.zip$//g')
-    Release_Version=$(echo $Release_FullVersion | sed 's/-dev.*$//g')
+    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_TSP\.zip$//g' | sed 's/_Legacy\.zip$//g' | sed 's/\.zip$//g')
+    Release_Version=$(echo $Release_FullVersion | sed 's/-dev.*$//g' | sed 's/-canary.*$//g')
     Release_size=$(echo $Release_asset | jq -r '.size')
     Release_size_MB=$((Release_size / 1024 / 1024))
     Release_Date=$(echo $Release_asset | jq -r '.created_at')
@@ -103,9 +131,12 @@ get_release_info() {
         "${BLUE}======= Installed Version ========${NC}\n" \
         " Version: $Local_CrossMixVersion \n" \
         "${BLUE}==================================${NC}\n"
+    package_name=$(echo $Release_asset | jq -r '.name')
     echo -ne "\n\n" \
         "${BLUE}======== Online Version  =========${NC}\n" \
         " Version: $Release_FullVersion \n" \
+        " Device:  $device_name \n" \
+        " Package: $package_name \n" \
         " Size:    ${Release_size_MB}MB \n" \
         " Date:    $Release_Date \n" \
         " URL:     $Release_url \n" \

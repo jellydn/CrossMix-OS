@@ -43,16 +43,44 @@ jobs:
           ls -la /home/runner/work/CrossMix-OS/CrossMix-OS
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
-      - name: Zipping release
+      - name: Create device-specific builds
         run: |
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}.zip" ./*
+          
+          # Create TSP (TrimUI Smart Pro) build - 1280x720
+          echo "Creating TSP (1280x720) build..."
+          # Remove legacy boot logo images to save space
+          rm -rf Apps/BootLogo/Images_1024x768
+          # Create device identifier file for TSP
+          mkdir -p etc
+          echo "tsp" > etc/trimui_device.txt
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip" ./*
+          
+          # Restore legacy images and create Legacy build - 1024x768  
+          echo "Creating Legacy (1024x768) build..."
+          git checkout HEAD -- Apps/BootLogo/Images_1024x768
+          # Remove TSP boot logo images to save space
+          rm -rf Apps/BootLogo/Images_1280x720
+          # Create device identifier file for legacy devices
+          echo "legacy" > etc/trimui_device.txt  
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip" ./*
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           title: "CrossMix-OS v${{ env.BUILD_VERSION }}"
           prerelease: false
-          files: "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}.zip"
+          files: |
+            /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip
+            /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip
           draft: true
+          body: |
+            ## CrossMix-OS v${{ env.BUILD_VERSION }}
+            
+            ### 📦 Device-Specific Downloads
+            - **TSP Build** (TrimUI Smart Pro - 1280x720): `CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip`
+            - **Legacy Build** (Other devices - 1024x768): `CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip`
+            
+            ### 🔄 OTA Update Support
+            The device will automatically detect and download the appropriate build for your device.

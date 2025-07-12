@@ -66,13 +66,14 @@ The project has two GitHub Actions workflows:
 - Triggered on version tags (e.g., `v1.3.0`)
 - Extracts RetroArch cores from 7z archives
 - Cleans development files from the release
-- Creates compressed release packages
+- Creates device-specific packages: `_TSP.zip` (1280x720) and `_Legacy.zip` (1024x768)
 - Publishes draft releases for manual review
 
 **Canary Releases** (`.github/workflows/CrossMix Canary.yml`):
 - Triggered on every push to main branch
 - Creates pre-release builds with format `v1.3.0-canary.20241212-1245.abc123`
-- Compatible with existing OTA update system
+- Builds device-specific packages to stay under 2GB GitHub limit
+- Compatible with existing OTA update system with automatic device detection
 - Automatically cleans up old canary releases (keeps latest 5)
 - Can be skipped with `[skip ci]` or `[skip canary]` in commit message
 
