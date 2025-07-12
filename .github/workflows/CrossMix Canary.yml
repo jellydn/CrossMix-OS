@@ -1,0 +1,115 @@
+name: CrossMix-OS Canary Release
+
+permissions:
+  id-token: "write"
+  contents: "write"
+  packages: "write"
+  pull-requests: "read"
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  canary-release:
+    name: Canary release
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip canary]')"
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Get version and build info
+        run: |
+          # Get the latest stable version tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 --match="v*" 2>/dev/null || echo "v1.0.0")
+          BASE_VERSION=${LATEST_TAG#v}
+          
+          # Create canary version with short commit hash and timestamp
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M)
+          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${SHORT_SHA}"
+          
+          echo "BASE_VERSION=${BASE_VERSION}" >> $GITHUB_ENV
+          echo "CANARY_VERSION=${CANARY_VERSION}" >> $GITHUB_ENV
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
+          
+          echo "Building canary version: ${CANARY_VERSION}"
+      
+      - name: Install 7-Zip
+        run: |
+          mkdir -p /home/runner/work/CrossMix-OS/tools
+          wget https://www.7-zip.org/a/7z2406-linux-x64.tar.xz -P /home/runner/work/CrossMix-OS/tools
+          tar xvf /home/runner/work/CrossMix-OS/tools/7z2406-linux-x64.tar.xz -C /home/runner/work/CrossMix-OS/tools
+          sudo cp /home/runner/work/CrossMix-OS/tools/7zz /usr/local/bin/
+      
+      - name: Update version file for canary
+        run: |
+          echo "${CANARY_VERSION}" > /home/runner/work/CrossMix-OS/CrossMix-OS/System/usr/trimui/crossmix-version.txt
+          
+      - name: Extract RetroArch cores
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS/RetroArch/.retroarch/cores -name "*.7z" -execdir 7zz x {} \; -execdir rm {} \;
+      
+      - name: Cleaning image...
+        run: |
+          find /home/runner/work/CrossMix-OS/CrossMix-OS -type f -name ".gitkeep" -delete
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/_assets
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/LICENSE
+          rm /home/runner/work/CrossMix-OS/CrossMix-OS/README.md
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.git
+          rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.github
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
+      
+      - name: Zipping canary release
+        run: |
+          shopt -s dotglob
+          cd /home/runner/work/CrossMix-OS/CrossMix-OS
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip" ./*
+      
+      - name: Delete previous canary releases
+        run: |
+          # Delete previous canary releases to avoid cluttering
+          gh release list --limit 50 | grep -E "v.*-canary\." | head -5 | while read -r line; do
+            tag=$(echo "$line" | awk '{print $1}')
+            echo "Deleting old canary release: $tag"
+            gh release delete "$tag" --yes || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create Canary Release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: "v${{ env.CANARY_VERSION }}"
+          title: "CrossMix-OS v${{ env.CANARY_VERSION }} (Canary)"
+          prerelease: true
+          files: "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}.zip"
+          body: |
+            ## 🚧 Canary Release - v${{ env.CANARY_VERSION }}
+            
+            **⚠️ This is an automated pre-release build for testing purposes.**
+            
+            - **Commit:** ${{ github.sha }}
+            - **Branch:** ${{ github.ref_name }}
+            - **Build Date:** ${{ env.TIMESTAMP }}
+            - **Base Version:** ${{ env.BASE_VERSION }}
+            
+            ### 📋 Recent Changes
+            ${{ github.event.head_commit.message }}
+            
+            ### ⚠️ Important Notes
+            - This is a **development build** and may contain bugs
+            - Use at your own risk - always backup your device first
+            - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
+            - Canary releases are automatically cleaned up (only latest 5 kept)
+            
+            ### 🔄 OTA Update Support
+            This canary release is compatible with the OTA update system. The device will detect this as a development version and offer it for update if you're on an older version.

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__read_multiple_files",
+      "mcp__filesystem__create_directory",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(chmod:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(if [ -d \"/Users/huynhdung/Projects/research/CrossMix-OS/Apps/SystemTools/Menu/Imgs_CrossMix - Refreshed\" ])",
+      "Bash(then cp \"/Users/huynhdung/Projects/research/CrossMix-OS/Apps/SystemTools/Menu/Imgs/ADVANCED SETTINGS##OTA CHANNEL (value).png\" \"/Users/huynhdung/Projects/research/CrossMix-OS/Apps/SystemTools/Menu/Imgs_CrossMix - Refreshed/ADVANCED SETTINGS##OTA CHANNEL (value).png\")",
+      "Bash(fi)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

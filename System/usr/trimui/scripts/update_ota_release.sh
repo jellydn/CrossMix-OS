@@ -3,7 +3,7 @@ source /mnt/SDCARD/System/usr/trimui/scripts/update_common.sh
 
 cmd=$1
 
-# channel : stable or beta
+# channel : stable, canary, or beta
 channel=$(cat "$updatedir/ota_channel.txt" 2>/dev/null)
 if [ "$channel" == "" ]; then
     channel="stable"
@@ -69,9 +69,14 @@ main() {
 get_release_info() {
     echo -ne "${PURPLE}Retrieving release information.. ${NC}"
 
-    # Github source api url
-
-    Release_assets_info=$(curl -k -s https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest)
+    # Github source api url - check for canary releases if channel is canary
+    if [ "$channel" = "canary" ]; then
+        # Get latest pre-release (canary)
+        Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[0]')
+    else
+        # Get latest stable release
+        Release_assets_info=$(curl -k -s https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest)
+    fi
 
     if echo "$Release_assets_info" | grep -q '"message": "Not Found"'; then
         rm "$updatedir/.CrossMixUpdateAvailable" 2>/dev/null
