@@ -20,7 +20,8 @@
       "Bash(./test_ota_canary.sh:*)",
       "Bash(curl:*)",
       "Bash(gh release view:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

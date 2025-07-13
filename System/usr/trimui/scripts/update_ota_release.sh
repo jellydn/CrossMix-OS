@@ -83,8 +83,8 @@ get_release_info() {
             # Get latest TSP canary release
             Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-TSP")) | select(.prerelease == true)' | jq -s '.[0]')
         else
-            # Get latest Legacy canary release  
-            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-Legacy")) | select(.prerelease == true)' | jq -s '.[0]')
+            # Get latest Brick canary release  
+            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-Brick")) | select(.prerelease == true)' | jq -s '.[0]')
         fi
         
         # Fallback to any canary release if device-specific not found
@@ -114,7 +114,7 @@ get_release_info() {
     Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
     
     Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
-    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_TSP\.zip$//g' | sed 's/_Legacy\.zip$//g' | sed 's/\.zip$//g')
+    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_TSP\.zip$//g' | sed 's/_Brick\.zip$//g' | sed 's/\.zip$//g')
     Release_Version=$(echo $Release_FullVersion | sed 's/-dev.*$//g' | sed 's/-canary.*$//g')
     Release_size=$(echo $Release_asset | jq -r '.size')
     Release_size_MB=$((Release_size / 1024 / 1024))

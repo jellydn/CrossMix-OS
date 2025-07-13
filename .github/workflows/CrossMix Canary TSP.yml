@@ -25,8 +25,8 @@ jobs:
       
       - name: Get version and build info
         run: |
-          # Get the latest stable version tag (excluding canary versions)
-          LATEST_TAG=$(git tag -l "v*" | grep -v "canary" | sort -V | tail -1 || echo "v1.0.0")
+          # Get the latest stable version from upstream repo
+          LATEST_TAG=$(curl -s https://api.github.com/repos/cizia64/CrossMix-OS/releases/latest | jq -r '.tag_name' || echo "v1.3.0")
           BASE_VERSION=${LATEST_TAG#v}
           
           # Create canary version with short commit hash and timestamp

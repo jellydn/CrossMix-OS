@@ -66,14 +66,14 @@ The project has two GitHub Actions workflows:
 - Triggered on version tags (e.g., `v1.3.0`)
 - Extracts RetroArch cores from 7z archives
 - Cleans development files from the release
-- Creates device-specific packages: `_TSP.zip` (1280x720) and `_Legacy.zip` (1024x768)
+- Creates device-specific packages: `_TSP.zip` (1280x720) and `_Brick.zip` (1024x768)
 - Publishes draft releases for manual review
 
 **Canary Releases** (Split workflows with multi-part downloads):
 - `.github/workflows/CrossMix Canary TSP.yml`: TSP device builds
-- `.github/workflows/CrossMix Canary Legacy.yml`: Legacy/Brick device builds  
+- `.github/workflows/CrossMix Canary Brick.yml`: TrimUI Brick device builds  
 - Triggered on every push to main branch (parallel execution)
-- Creates device-specific pre-releases with format `v1.3.0-canary.20241212-1245.abc123-TSP` and `v1.3.0-canary.20241212-1245.abc123-Legacy`
+- Creates device-specific pre-releases with format `v1.3.0-canary.20241212-1245.abc123-TSP` and `v1.3.0-canary.20241212-1245.abc123-Brick`
 - Uses multi-part zip files to stay under 2GB GitHub limit (Part1, Part2, + install script)
 - Includes automated installation scripts for easy setup
 - OTA update system will be enhanced to handle multi-part downloads
