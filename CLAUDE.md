@@ -69,15 +69,15 @@ The project has two GitHub Actions workflows:
 - Creates device-specific packages: `_TSP.zip` (1280x720) and `_Brick.zip` (1024x768)
 - Publishes draft releases for manual review
 
-**Canary Releases** (Split workflows with multi-part downloads):
-- `.github/workflows/CrossMix Canary TSP.yml`: TSP device builds
-- `.github/workflows/CrossMix Canary Brick.yml`: TrimUI Brick device builds  
-- Triggered on every push to main branch (parallel execution)
-- Creates device-specific pre-releases with format `v1.3.0-canary.20241212-1245.abc123-TSP` and `v1.3.0-canary.20241212-1245.abc123-Brick`
+**Canary Releases** (Unified workflow with multi-part downloads):
+- `.github/workflows/CrossMix Canary.yml`: Single workflow building universal version
+- Triggered on every push to main branch 
+- Creates unified pre-releases with format `v1.3.0-canary.20241212-1245.abc123`
+- Universal build compatible with both TSP and Brick devices (same hardware capabilities)
 - Uses multi-part zip files to stay under 2GB GitHub limit (Part1, Part2, + install script)
-- Includes automated installation scripts for easy setup
-- OTA update system will be enhanced to handle multi-part downloads
-- Automatically cleans up old canary releases (keeps latest 5 per device)
+- Includes automated installation script for easy setup
+- Device detection handles boot logo resolution automatically
+- Automatically cleans up old canary releases (keeps latest 5)
 - Can be skipped with `[skip ci]` or `[skip canary]` in commit message
 
 ### Configuration Management

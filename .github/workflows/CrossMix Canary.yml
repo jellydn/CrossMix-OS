@@ -1,4 +1,4 @@
-name: CrossMix-OS Canary TSP Release
+name: CrossMix-OS Canary Release
 
 permissions:
   id-token: "write"
@@ -13,8 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  canary-tsp-release:
-    name: Canary TSP release
+  canary-release:
+    name: Unified Canary release
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip canary]')"
 
@@ -39,7 +39,7 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
           echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_ENV
           
-          echo "Building TSP canary version: ${CANARY_VERSION}"
+          echo "Building unified canary version: ${CANARY_VERSION}"
       
       - name: Install 7-Zip
         run: |
@@ -56,7 +56,7 @@ jobs:
         run: |
           find /home/runner/work/CrossMix-OS/CrossMix-OS/RetroArch/.retroarch/cores -name "*.7z" -execdir 7zz x {} \; -execdir rm {} \;
       
-      - name: Cleaning image and prepare TSP build
+      - name: Prepare unified build
         run: |
           find /home/runner/work/CrossMix-OS/CrossMix-OS -type f -name ".gitkeep" -delete
           rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/_assets
@@ -66,125 +66,128 @@ jobs:
           rm -rf /home/runner/work/CrossMix-OS/CrossMix-OS/.github
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
-          
-          # TSP-specific preparation: Remove legacy boot logo images
-          rm -rf Apps/BootLogo/Images_1024x768
-          # Create device identifier file for TSP
-          mkdir -p etc
-          echo "tsp" > etc/trimui_device.txt
       
-      - name: Create TSP build in parts
+      - name: Create unified build in parts
         run: |
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
-          echo "Creating TSP (1280x720) build with full features in multiple parts..."
+          echo "Creating unified CrossMix-OS build with full features in multiple parts..."
           
-          # Split build into manageable parts
-          echo "Creating Part 1: Core system and basic emulators..."
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part1.zip" \
+          # Split build into manageable parts to avoid 2GB limit
+          echo "Creating Part 1: Core system, apps, and basic emulators..."
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip" \
             System Apps Emus BIOS Themes Icons Backgrounds trimui \
             --exclude="Apps/PortMaster/*" \
             --exclude="Emus/SCUMMVM/*" \
-            --exclude="Emus/PSP/*" \
-            --exclude="RetroArch/.retroarch/cores/mame2015_libretro.so" \
-            --exclude="RetroArch/.retroarch/cores/scummvm_libretro-2.9.so" \
-            --exclude="RetroArch/.retroarch/cores/mame2010_libretro.so"
+            --exclude="Emus/PSP/*"
           
           echo "Creating Part 2: Heavy components and RetroArch..."
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part2.zip" \
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip" \
             RetroArch Apps/PortMaster Emus/SCUMMVM Emus/PSP \
-            Pictures Data autorun.inf .VolumeIcon.icns etc
+            Pictures Data autorun.inf .VolumeIcon.icns
           
           # Create installation script
-          cat > "/home/runner/work/CrossMix-OS/install_tsp.sh" << 'EOF'
+          cat > "/home/runner/work/CrossMix-OS/install.sh" << 'EOF'
           #!/bin/sh
-          echo "CrossMix-OS TSP Installation Script"
-          echo "===================================="
+          echo "CrossMix-OS Unified Installation Script"
+          echo "======================================="
+          echo "Compatible with both TrimUI Smart Pro and TrimUI Brick"
+          echo ""
           
           # Check if both parts are present
-          if [ ! -f "CrossMix-OS_v*_TSP_Part1.zip" ] || [ ! -f "CrossMix-OS_v*_TSP_Part2.zip" ]; then
+          if [ ! -f "CrossMix-OS_v*_Part1.zip" ] || [ ! -f "CrossMix-OS_v*_Part2.zip" ]; then
             echo "Error: Both part files must be present in the same directory"
             echo "Required files:"
-            echo "- CrossMix-OS_v*_TSP_Part1.zip"
-            echo "- CrossMix-OS_v*_TSP_Part2.zip"
+            echo "- CrossMix-OS_v*_Part1.zip"
+            echo "- CrossMix-OS_v*_Part2.zip"
             exit 1
           fi
           
           echo "Extracting Part 1 (Core system)..."
-          unzip -q CrossMix-OS_v*_TSP_Part1.zip
+          unzip -q CrossMix-OS_v*_Part1.zip
           
           echo "Extracting Part 2 (Heavy components)..."
-          unzip -q CrossMix-OS_v*_TSP_Part2.zip
+          unzip -q CrossMix-OS_v*_Part2.zip
           
+          echo ""
           echo "Installation complete!"
-          echo "You can now copy the extracted files to your TrimUI Smart Pro SD card."
+          echo "You can now copy the extracted files to your TrimUI device SD card."
+          echo ""
+          echo "Device Detection:"
+          echo "- Boot logos will automatically adapt to your device screen resolution"
+          echo "- All emulators and features work on both TSP and Brick devices"
+          echo ""
           echo "Remember to backup your existing installation first!"
           EOF
           
-          echo "Build size information:"
-          ls -lh /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part*.zip
+          echo "Unified build size information:"
+          ls -lh /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part*.zip
       
-      - name: Delete previous TSP canary releases
+      - name: Delete previous canary releases
         run: |
-          # Delete previous TSP canary releases to avoid cluttering (keep latest 5)
-          gh release list --limit 50 --repo ${{ github.repository }} | grep -E "v.*-canary\.*TSP" | tail -n +6 | while read -r line; do
+          # Delete previous canary releases to avoid cluttering (keep latest 5)
+          gh release list --limit 50 --repo ${{ github.repository }} | grep -E "v.*-canary\." | tail -n +6 | while read -r line; do
             tag=$(echo "$line" | awk '{print $1}')
-            echo "Deleting old TSP canary release: $tag"
+            echo "Deleting old canary release: $tag"
             gh release delete "$tag" --yes --repo ${{ github.repository }} || true
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Create TSP Canary Release
+      - name: Create Unified Canary Release
         run: |
-          # Create release using GitHub CLI with multi-part files
-          gh release create "v${{ env.CANARY_VERSION }}-TSP" \
+          # Create release using GitHub CLI with unified multi-part files
+          gh release create "v${{ env.CANARY_VERSION }}" \
             --repo ${{ github.repository }} \
-            --title "CrossMix-OS v${{ env.CANARY_VERSION }} TSP (Canary)" \
-            --notes "## 🚧 TSP Canary Release - v${{ env.CANARY_VERSION }}
+            --title "CrossMix-OS v${{ env.CANARY_VERSION }} (Canary)" \
+            --notes "## 🚧 Unified Canary Release - v${{ env.CANARY_VERSION }}
 
-          **⚠️ This is an automated pre-release build for TSP devices only.**
+          **⚠️ This is an automated pre-release build compatible with both TrimUI Smart Pro and TrimUI Brick devices.**
 
           - **Commit:** ${{ github.sha }}
           - **Branch:** ${{ github.ref_name }}
           - **Build Date:** ${{ env.TIMESTAMP }}
           - **Base Version:** ${{ env.BASE_VERSION }}
-          - **Device:** TrimUI Smart Pro (1280x720)
 
-          ### 📦 TSP Build Features
-          - Full-featured build with all emulators (SCUMMVM, PSP, DC, Saturn, NDS)
-          - PortMaster for ports and games
-          - Heavy RetroArch cores (MAME2015, ScummVM, etc.)
-          - High-resolution assets
+          ### 📦 Universal Build Features
+          - **Full-featured build** with all emulators (SCUMMVM, PSP, DC, Saturn, NDS)
+          - **PortMaster** for ports and games
+          - **All RetroArch cores** (MAME2015, ScummVM, etc.)
+          - **Device-adaptive assets** (boot logos automatically match your device resolution)
+          - **Universal compatibility** - same build works on both TSP (1280x720) and Brick (1024x768)
 
           ### 💾 Installation Instructions
           This build is split into multiple parts to avoid GitHub's 2GB file size limit:
 
-          1. **Download both parts:**
-             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part1.zip\` (Core system)
-             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part2.zip\` (Heavy components)
-             - \`install_tsp.sh\` (Installation script)
+          1. **Download all files:**
+             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip\` (Core system)
+             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip\` (Heavy components)
+             - \`install.sh\` (Installation script)
 
           2. **Install:**
              - Place all files in the same directory
-             - Run: \`bash install_tsp.sh\`
-             - Copy extracted files to your TrimUI Smart Pro SD card
+             - Run: \`bash install.sh\`
+             - Copy extracted files to your TrimUI device SD card
+
+          ### 🎮 Device Compatibility
+          - **TrimUI Smart Pro**: Full experience with all features
+          - **TrimUI Brick**: Full experience with all features
+          - **Automatic detection**: Boot logos and UI adapt to your device automatically
 
           ### 📋 Recent Changes
           ${{ github.event.head_commit.message }}
 
           ### ⚠️ Important Notes
-          - This build is **only for TrimUI Smart Pro devices**
           - **Download ALL parts** for complete installation
           - This is a **development build** and may contain bugs
           - Use at your own risk - always backup your device first
           - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
 
           ### 🔄 OTA Update Support
-          OTA updates will be updated to handle multi-part downloads in a future release." \
+          The OTA system will automatically download the appropriate build for your device." \
             --prerelease \
-            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part1.zip" \
-            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_TSP_Part2.zip" \
-            "/home/runner/work/CrossMix-OS/install_tsp.sh"
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip" \
+            "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip" \
+            "/home/runner/work/CrossMix-OS/install.sh"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

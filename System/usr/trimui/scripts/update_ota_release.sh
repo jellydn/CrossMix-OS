@@ -78,19 +78,8 @@ get_release_info() {
     
     # Github source api url - check for canary releases if channel is canary
     if [ "$channel" = "canary" ]; then
-        # Get device-specific canary release
-        if [ "$Current_device" = "tsp" ]; then
-            # Get latest TSP canary release
-            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-TSP")) | select(.prerelease == true)' | jq -s '.[0]')
-        else
-            # Get latest Brick canary release  
-            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.tag_name | contains("-Brick")) | select(.prerelease == true)' | jq -s '.[0]')
-        fi
-        
-        # Fallback to any canary release if device-specific not found
-        if [ -z "$Release_assets_info" ] || [ "$Release_assets_info" = "null" ]; then
-            Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.prerelease == true)' | jq -s '.[0]')
-        fi
+        # Get latest unified canary release (contains both TSP and Brick builds)
+        Release_assets_info=$(curl -k -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq '.[] | select(.prerelease == true)' | jq -s '.[0]')
     else
         # Get latest stable release
         Release_assets_info=$(curl -k -s https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest)
@@ -110,11 +99,11 @@ get_release_info() {
         device_name="TrimUI Brick"
     fi
     
-    # Get the release asset (should be the only one in device-specific releases)
-    Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v"))')
+    # Get unified release asset (Part1 for size reference)
+    Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("_Part1.zip"))')
     
     Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
-    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_TSP\.zip$//g' | sed 's/_Brick\.zip$//g' | sed 's/\.zip$//g')
+    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_Part1\.zip$//g')
     Release_Version=$(echo $Release_FullVersion | sed 's/-dev.*$//g' | sed 's/-canary.*$//g')
     Release_size=$(echo $Release_asset | jq -r '.size')
     Release_size_MB=$((Release_size / 1024 / 1024))

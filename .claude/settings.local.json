@@ -21,7 +21,10 @@
       "Bash(curl:*)",
       "Bash(gh release view:*)",
       "Bash(rm:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(ls:*)",
+      "Bash(gh workflow run:*)",
+      "WebFetch(domain:www.comparehandhelds.com)"
     ],
     "deny": []
   }
