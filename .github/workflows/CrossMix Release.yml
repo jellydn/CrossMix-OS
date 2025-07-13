@@ -43,70 +43,24 @@ jobs:
           ls -la /home/runner/work/CrossMix-OS/CrossMix-OS
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           /usr/local/bin/7zz a RetroArch/default_config.7z RetroArch/retroarch.cfg RetroArch/.retroarch/config/*
-      - name: Create device-specific builds
+      - name: Create unified build
         run: |
           shopt -s dotglob
           cd /home/runner/work/CrossMix-OS/CrossMix-OS
           
-          # Backup directories for device-specific builds
-          echo "Backing up device-specific files..."
-          mkdir -p /tmp/backup
-          cp -r Apps/BootLogo/Images_1024x768 /tmp/backup/
-          cp -r Apps/BootLogo/Images_1280x720 /tmp/backup/
+          echo "Creating unified CrossMix-OS build compatible with both TSP and Brick devices..."
           
-          # Save heavy components for selective inclusion
-          mkdir -p /tmp/heavy_components
-          # Move heavy emulators temporarily
-          [ -d "Emus/SCUMMVM" ] && mv Emus/SCUMMVM /tmp/heavy_components/
-          [ -d "Emus/PSP" ] && mv Emus/PSP /tmp/heavy_components/
-          [ -d "Emus/DC" ] && mv Emus/DC /tmp/heavy_components/
-          [ -d "Emus/SATURN" ] && mv Emus/SATURN /tmp/heavy_components/
-          [ -d "Emus/NDS" ] && mv Emus/NDS /tmp/heavy_components/
+          # Keep all boot logo images for device adaptation
+          echo "Keeping all boot logo resolutions for device compatibility..."
           
-          # Move PortMaster temporarily (TSP only)
-          [ -d "Apps/PortMaster" ] && mv Apps/PortMaster /tmp/heavy_components/
+          # Keep all emulators and features (both devices have same hardware capabilities)
+          echo "Including all emulators and features for universal compatibility..."
           
-          # Move heavy RetroArch cores temporarily
-          mkdir -p /tmp/heavy_components/cores
-          for core in mame2015_libretro.so scummvm_libretro-2.9.so mame2010_libretro.so fbneo_libretro.so flycast_libretro.so ppsspp_libretro.so; do
-            [ -f "RetroArch/.retroarch/cores/$core" ] && mv "RetroArch/.retroarch/cores/$core" /tmp/heavy_components/cores/
-          done
+          # Create unified build with all features
+          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}.zip" ./*
           
-          # Move SCUMMVM BIOS files
-          [ -d "BIOS/ScummVM" ] && mv BIOS/ScummVM /tmp/heavy_components/
-          
-          # Create TSP (TrimUI Smart Pro) build - 1280x720
-          echo "Creating TSP (1280x720) build with full features..."
-          # Remove legacy boot logo images to save space
-          rm -rf Apps/BootLogo/Images_1024x768
-          # Restore TSP-specific components
-          cp -r /tmp/heavy_components/* . 2>/dev/null || true
-          [ -d "/tmp/heavy_components/cores" ] && cp /tmp/heavy_components/cores/* RetroArch/.retroarch/cores/ 2>/dev/null || true
-          [ -d "/tmp/heavy_components/ScummVM" ] && cp -r /tmp/heavy_components/ScummVM BIOS/ 2>/dev/null || true
-          # Create device identifier file for TSP
-          mkdir -p etc
-          echo "tsp" > etc/trimui_device.txt
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip" ./*
-          
-          # Create Legacy/Brick build - 1024x768  
-          echo "Creating Legacy/Brick (1024x768) build with optimized components..."
-          # Remove TSP-specific heavy components
-          rm -rf Emus/SCUMMVM Emus/PSP Emus/DC Emus/SATURN Emus/NDS
-          rm -rf Apps/PortMaster
-          rm -f RetroArch/.retroarch/cores/mame2015_libretro.so
-          rm -f RetroArch/.retroarch/cores/scummvm_libretro-2.9.so
-          rm -f RetroArch/.retroarch/cores/mame2010_libretro.so
-          rm -f RetroArch/.retroarch/cores/fbneo_libretro.so
-          rm -f RetroArch/.retroarch/cores/flycast_libretro.so
-          rm -f RetroArch/.retroarch/cores/ppsspp_libretro.so
-          rm -rf BIOS/ScummVM
-          # Restore legacy images from backup
-          cp -r /tmp/backup/Images_1024x768 Apps/BootLogo/
-          # Remove TSP boot logo images to save space
-          rm -rf Apps/BootLogo/Images_1280x720
-          # Create device identifier file for legacy devices
-          echo "brick" > etc/trimui_device.txt  
-          zip -r "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip" ./*
+          echo "Unified build created: CrossMix-OS_v${{ env.BUILD_VERSION }}.zip"
+          ls -lh "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}.zip"
       - name: Create Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
@@ -114,15 +68,22 @@ jobs:
           title: "CrossMix-OS v${{ env.BUILD_VERSION }}"
           prerelease: false
           files: |
-            /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip
-            /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip
+            /home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.BUILD_VERSION }}.zip
           draft: true
           body: |
             ## CrossMix-OS v${{ env.BUILD_VERSION }}
             
-            ### 📦 Device-Specific Downloads
-            - **TSP Build** (TrimUI Smart Pro - 1280x720): `CrossMix-OS_v${{ env.BUILD_VERSION }}_TSP.zip`
-            - **Legacy Build** (Other devices - 1024x768): `CrossMix-OS_v${{ env.BUILD_VERSION }}_Legacy.zip`
+            ### 📦 Universal Download
+            - **Unified Build**: `CrossMix-OS_v${{ env.BUILD_VERSION }}.zip`
+            - **Compatible with**: Both TrimUI Smart Pro (1280x720) and TrimUI Brick (1024x768)
+            - **Full Features**: All emulators, PortMaster, and RetroArch cores included
+            - **Device Adaptive**: Boot logos automatically match your device resolution
+            
+            ### 🎮 Device Compatibility
+            This single build works on both devices since they share identical hardware capabilities:
+            - **TrimUI Smart Pro**: Full experience with all features
+            - **TrimUI Brick**: Full experience with all features
+            - **Automatic Detection**: Device-specific optimizations applied at runtime
             
             ### 🔄 OTA Update Support
-            The device will automatically detect and download the appropriate build for your device.
+            The OTA system will automatically download and install the appropriate build for your device.

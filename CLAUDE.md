@@ -66,7 +66,7 @@ The project has two GitHub Actions workflows:
 - Triggered on version tags (e.g., `v1.3.0`)
 - Extracts RetroArch cores from 7z archives
 - Cleans development files from the release
-- Creates device-specific packages: `_TSP.zip` (1280x720) and `_Brick.zip` (1024x768)
+- Creates unified package compatible with both TSP (1280x720) and Brick (1024x768)
 - Publishes draft releases for manual review
 
 **Canary Releases** (Unified workflow with multi-part downloads):

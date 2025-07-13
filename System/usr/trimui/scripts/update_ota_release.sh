@@ -99,11 +99,18 @@ get_release_info() {
         device_name="TrimUI Brick"
     fi
     
-    # Get unified release asset (Part1 for size reference)
-    Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("_Part1.zip"))')
-    
-    Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
-    Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_Part1\.zip$//g')
+    # Get release asset - unified for canary (Part1), single file for stable
+    if [ "$channel" = "canary" ]; then
+        # Canary releases use multi-part format
+        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("_Part1.zip"))')
+        Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
+        Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/_Part1\.zip$//g')
+    else
+        # Stable releases use single unified file
+        Release_asset=$(echo "$Release_assets_info" | jq '.assets[]? | select(.name | contains("CrossMix-OS_v")) | select(.name | contains(".zip"))')
+        Release_url=$(echo $Release_asset | jq '.browser_download_url' | tr -d '"')
+        Release_FullVersion=$(echo $Release_asset | jq '.name' | tr -d "\"" | sed 's/^CrossMix-OS_v//g' | sed 's/\.zip$//g')
+    fi
     Release_Version=$(echo $Release_FullVersion | sed 's/-dev.*$//g' | sed 's/-canary.*$//g')
     Release_size=$(echo $Release_asset | jq -r '.size')
     Release_size_MB=$((Release_size / 1024 / 1024))

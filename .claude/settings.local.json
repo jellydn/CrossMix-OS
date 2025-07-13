@@ -24,7 +24,8 @@
       "Bash(mv:*)",
       "Bash(ls:*)",
       "Bash(gh workflow run:*)",
-      "WebFetch(domain:www.comparehandhelds.com)"
+      "WebFetch(domain:www.comparehandhelds.com)",
+      "Bash(gh release delete:*)"
     ],
     "deny": []
   }
