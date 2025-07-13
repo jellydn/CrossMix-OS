@@ -149,10 +149,12 @@ jobs:
       - name: Create Unified Canary Release
         run: |
           # Create release using GitHub CLI with unified multi-part files
+          # Use a HEREDOC to avoid shell parsing issues with special characters
           gh release create "v${{ env.CANARY_VERSION }}" \
             --repo ${{ github.repository }} \
             --title "CrossMix-OS v${{ env.CANARY_VERSION }} (Canary)" \
-            --notes "## 🚧 Unified Canary Release - v${{ env.CANARY_VERSION }}
+            --notes "$(cat <<'EOF'
+          ## 🚧 Unified Canary Release - v${{ env.CANARY_VERSION }}
 
           **⚠️ This is an automated pre-release build compatible with both TrimUI Smart Pro and TrimUI Brick devices.**
 
@@ -172,13 +174,13 @@ jobs:
           This build is split into multiple parts to avoid GitHub's 2GB file size limit:
 
           1. **Download all files:**
-             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip\` (Core system)
-             - \`CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip\` (Heavy components)
-             - \`install.sh\` (Installation script)
+             - CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip (Core system)
+             - CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip (Heavy components)
+             - install.sh (Installation script)
 
           2. **Install:**
              - Place all files in the same directory
-             - Run: \`bash install.sh\`
+             - Run: bash install.sh
              - Copy extracted files to your TrimUI device SD card
 
           ### 🎮 Device Compatibility
@@ -193,10 +195,12 @@ jobs:
           - **Download ALL parts** for complete installation
           - This is a **development build** and may contain bugs
           - Use at your own risk - always backup your device first
-          - Report issues on the [GitHub Issues](https://github.com/cizia64/CrossMix-OS/issues) page
+          - Report issues on the GitHub Issues page
 
           ### 🔄 OTA Update Support
-          The OTA system will automatically download the appropriate build for your device." \
+          The OTA system will automatically download the appropriate build for your device.
+          EOF
+          )" \
             --prerelease \
             "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part1.zip" \
             "/home/runner/work/CrossMix-OS/CrossMix-OS_v${{ env.CANARY_VERSION }}_Part2.zip" \
